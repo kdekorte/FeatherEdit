@@ -3,7 +3,7 @@ import AppKit
 /// Application-wide constants.
 enum AppInfo {
     static let name = "FeatherEdit"
-    static let version = "1.0.0"
+    static let version = "1.0.1"
     static let copyright = "Copyright © 2026 FeatherEdit contributors."
 }
 
@@ -12,6 +12,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     static var shared: AppDelegate!
 
     private(set) var windowController: MainWindowController?
+    /// Files delivered by the "open document" Apple event before the window
+    /// exists (Finder launches deliver the event *before*
+    /// applicationDidFinishLaunching). Drained once the window is up.
+    private var pendingURLs: [URL] = []
 
     override init() {
         super.init()
@@ -27,19 +31,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.windowController = controller
         controller.showWindow(nil)
 
-        // Files given on the command line (e.g. `FeatherEdit file.txt` or
-        // `open -a FeatherEdit.app file.txt` when the app is not running).
+        // Files given on the command line (e.g. `FeatherEdit file.txt`).
         let urls = CommandLine.arguments.dropFirst().compactMap { URL(fileURLWithPath: $0) }
         if !urls.isEmpty {
-            controller.open(urls: urls)
+            controller.open(urls: Array(urls))
+        }
+        // Files that arrived via Apple events before launch finished.
+        if !pendingURLs.isEmpty {
+            controller.open(urls: pendingURLs)
+            pendingURLs.removeAll()
         }
 
         NSApp.activate(ignoringOtherApps: true)
     }
 
-    /// Files opened via Finder / `open -a` while the app is already running.
+    /// Files opened via Finder / `open -a` — may arrive before the window
+    /// controller exists (the event is delivered during launch, before
+    /// applicationDidFinishLaunching); those are queued and opened once the
+    /// window is up.
     func application(_ application: NSApplication, open urls: [URL]) {
-        windowController?.open(urls: urls)
+        let fileURLs = urls.filter { $0.isFileURL }
+        guard !fileURLs.isEmpty else { return }
+        if let windowController {
+            windowController.open(urls: fileURLs)
+        } else {
+            pendingURLs.append(contentsOf: fileURLs)
+        }
     }
 
     /// The standard about panel, with our version and credits filled in.
