@@ -156,14 +156,19 @@ ensure_cask() {
         cat > "${CASK}" <<EOF
 cask "featheredit" do
   version "${VERSION}"
+  # Re-generate for every release with scripts/release.sh (it prints the sha256)
   sha256 ":no-check"
 
-  url "https://github.com/${REPO}/releases/download/${TAG}/${ZIP}"
+  url "https://github.com/${REPO}/releases/download/v#{version}/FeatherEdit-#{version}.zip"
   name "FeatherEdit"
   desc "Lightweight native macOS text editor"
   homepage "https://github.com/${REPO}"
 
   app "FeatherEdit.app"
+
+  zap trash: [
+    "~/Library/Preferences/com.featheredit.app.plist",
+  ]
 end
 EOF
     fi
