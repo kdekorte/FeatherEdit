@@ -1,8 +1,45 @@
 # FeatherEdit
 
-A lightweight, native macOS text editor written in Swift/AppKit — a little
+A lightweight text editor for macOS, built in native Swift/AppKit — a little
 sibling of VS Code for opening a file, making small edits and saving it.
 Not a project editor.
+
+## Installation
+
+### Homebrew (recommended)
+
+FeatherEdit ships its own Homebrew cask from this repository's GitHub releases:
+
+```sh
+brew tap kdekorte/featheredit https://github.com/kdekorte/FeatherEdit
+brew trust kdekorte/featheredit        # newer Homebrew: trust the third-party tap
+brew install --cask kdekorte/featheredit/featheredit
+```
+
+To upgrade to a new release:
+
+```sh
+brew update
+brew upgrade --cask kdekorte/featheredit/featheredit
+```
+
+To uninstall:
+
+```sh
+brew uninstall --cask kdekorte/featheredit/featheredit
+brew untap kdekorte/featheredit
+```
+
+> **Note:** the cask downloads the release artifact attached to the
+> [GitHub releases](https://github.com/kdekorte/FeatherEdit/releases) page,
+> so it requires a published release (see *Build, run and package* below).
+
+### Manual
+
+Download `FeatherEdit-<version>.zip` from the
+[releases page](https://github.com/kdekorte/FeatherEdit/releases), unzip it,
+and drag `FeatherEdit.app` to `/Applications`. Or from a clone:
+`make install`.
 
 ## Features
 
