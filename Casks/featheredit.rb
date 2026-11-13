@@ -1,7 +1,7 @@
 cask "featheredit" do
-  version "1.0.0"
+  version "1.0.1"
   # Re-generate for every release with scripts/release.sh (it prints the sha256)
-  sha256 "1706d5be170499bd8927e59fd401bf9af193cebe6b249aa6063ca5e6fc1629f6"
+  sha256 "d2f7052ce68588dc06bd9a3ffd86c86312ef5dfbce5f29bc2f717cd89fc58e2a"
 
   url "https://github.com/kdekorte/FeatherEdit/releases/download/v#{version}/FeatherEdit-#{version}.zip"
   name "FeatherEdit"
