@@ -84,7 +84,10 @@ final class FindBarView: NSView, NSTextFieldDelegate {
         countLabel.font = .systemFont(ofSize: 11)
         countLabel.textColor = .secondaryLabelColor
         countLabel.alignment = .right
-        countLabel.widthAnchor.constraint(equalToConstant: 64).isActive = true
+        countLabel.cell?.truncatesLastVisibleLine = true
+        countLabel.cell?.wraps = false
+        countLabel.setContentHuggingPriority(.required, for: .horizontal)
+        countLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
 
         configureToggle(caseButton, title: "Aa", tooltip: "Match Case")
         configureToggle(wordButton, title: "ab", tooltip: "Match Whole Word")
@@ -98,28 +101,31 @@ final class FindBarView: NSView, NSTextFieldDelegate {
         configureIcon(nextButton, symbol: "chevron.down", tooltip: "Next Match (⏎)") { [weak self] in self?.onNext?() }
         configureIcon(closeButton, symbol: "xmark", tooltip: "Close (esc)") { [weak self] in self?.onClose?() }
 
-        stack.addArrangedSubview(makeRow([expandButton, findField, countLabel,
-                                          caseButton, wordButton, regexButton,
-                                          prevButton, nextButton, closeButton]))
+        let findRow = makeRow([expandButton, findField, countLabel,
+                               caseButton, wordButton, regexButton,
+                               prevButton, nextButton, closeButton])
+        stack.addArrangedSubview(findRow)
         findField.widthAnchor.constraint(greaterThanOrEqualToConstant: 160).isActive = true
 
-        // Replace row, hidden until the chevron (or ⌥⌘F) reveals it.
+        // Replace row, hidden until the chevron (or ⌥⌘F) reveals it. The
+        // replace field aligns exactly under the find field.
         configureAction(replaceButton, title: "Replace") { [weak self] in self?.onReplace?() }
         configureAction(replaceAllButton, title: "Replace All") { [weak self] in self?.onReplaceAll?() }
-        // Fixed width (not tied to expandButton) — a cross-view constraint
-        // cannot be activated before both views share a superview.
-        let spacer = NSView()
-        spacer.widthAnchor.constraint(equalToConstant: 32).isActive = true
+        let trailingSpacer = NSView()
         replaceRow.orientation = .horizontal
         replaceRow.spacing = 4
         replaceRow.alignment = .centerY
-        for view in [spacer, replaceField, replaceButton, replaceAllButton] {
+        for view in [replaceField, replaceButton, replaceAllButton, trailingSpacer] {
             replaceRow.addArrangedSubview(view)
         }
         replaceRow.isHidden = true
         stack.addArrangedSubview(replaceRow)
-        // Both fields are now in the same hierarchy, so this is safe.
+        // Both rows are now in the same hierarchy, so these are safe. Pin the
+        // replace field's position and width to the find field's, and stretch
+        // the row to the full bar width so the trailing spacer can flex.
+        replaceField.leadingAnchor.constraint(equalTo: findField.leadingAnchor).isActive = true
         replaceField.widthAnchor.constraint(equalTo: findField.widthAnchor).isActive = true
+        replaceRow.trailingAnchor.constraint(equalTo: stack.trailingAnchor).isActive = true
     }
 
     @available(*, unavailable)
@@ -184,7 +190,7 @@ final class FindBarView: NSView, NSTextFieldDelegate {
     private func makeRow(_ views: [NSView]) -> NSStackView {
         let row = NSStackView(views: views)
         row.orientation = .horizontal
-        row.spacing = 4
+        row.spacing = 2
         row.alignment = .centerY
         return row
     }
