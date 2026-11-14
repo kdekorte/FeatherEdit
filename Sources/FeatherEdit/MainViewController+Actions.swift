@@ -91,7 +91,8 @@ extension MainViewController {
         EditorSettings(highlighting: highlightingEnabled,
                        lineNumbers: showsLineNumbers,
                        wraps: wrapsLines,
-                       darkMode: editorDarkMode)
+                       darkMode: editorDarkMode,
+                       showSidebar: showsSidebarByDefault)
     }
 
     private func apply(settings: EditorSettings) {
@@ -99,6 +100,14 @@ extension MainViewController {
         showsLineNumbers = settings.lineNumbers
         wrapsLines = settings.wraps
         editorDarkMode = settings.darkMode
+        showsSidebarByDefault = settings.showSidebar
+    }
+
+    /// Collapse or expand the sidebar according to the "Show sidebar by
+    /// default" setting. Applied on launch (and when the setting changes).
+    func applySidebarDefault() {
+        guard isViewLoaded, let item = sidebarSplitItem else { return }
+        item.isCollapsed = !showsSidebarByDefault
     }
 
     @IBAction func toggleLineNumbers(_ sender: Any?) {

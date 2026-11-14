@@ -12,7 +12,10 @@ final class StatusBarView: NSView {
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         wantsLayer = true
-        layer?.backgroundColor = NSColor(calibratedRed: 0.00, green: 0.30, blue: 0.55, alpha: 1).cgColor
+        // The user's macOS accent color (Settings ▸ Appearance). It is a
+        // dynamic color, so the layer's backing CGColor is refreshed whenever
+        // the effective appearance changes.
+        layer?.backgroundColor = NSColor.controlAccentColor.cgColor
 
         for label in [stateLabel, positionLabel, encodingLabel, languageLabel] {
             label.font = .systemFont(ofSize: 11)
@@ -39,6 +42,11 @@ final class StatusBarView: NSView {
 
     override var intrinsicContentSize: NSSize {
         NSSize(width: NSView.noIntrinsicMetric, height: 24)
+    }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        layer?.backgroundColor = NSColor.controlAccentColor.cgColor
     }
 
     func update(state: String?, line: Int, column: Int, language: String, highlighting: Bool) {

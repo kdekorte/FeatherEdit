@@ -57,6 +57,16 @@ final class MainViewController: NSSplitViewController {
                                  darkMode: editorDarkMode)
         }
     }
+    /// Show the sidebar when the app launches (Settings ▸ "Show sidebar by
+    /// default"). Off by default; View ▸ Toggle Sidebar still works for the
+    /// session. Persists across launches via UserDefaults.
+    var showsSidebarByDefault = settingDefault("ShowSidebarByDefault", false) {
+        didSet {
+            UserDefaults.standard.set(showsSidebarByDefault, forKey: "ShowSidebarByDefault")
+            applySidebarDefault()
+        }
+    }
+    var sidebarSplitItem: NSSplitViewItem?
     var settingsWindow: SettingsWindowController?
 
     /// VS Code-style find/replace bar (⌘F / ⌥⌘F), floating over the editor.
@@ -76,6 +86,9 @@ final class MainViewController: NSSplitViewController {
         if !didSetInitialDivider, splitView.arrangedSubviews.count > 1 {
             didSetInitialDivider = true
             splitView.setPosition(200, ofDividerAt: 0)
+            // Apply the sidebar default once layout has run so the collapse
+            // is not undone by the split view's initial layout pass.
+            applySidebarDefault()
         }
     }
 
@@ -90,6 +103,7 @@ final class MainViewController: NSSplitViewController {
         sidebarItem.maximumThickness = 400
         sidebarItem.preferredThicknessFraction = 0.18
         addSplitViewItem(sidebarItem)
+        sidebarSplitItem = sidebarItem
 
         // Right side: tab strip, editor, status bar.
         let main = NSView()
