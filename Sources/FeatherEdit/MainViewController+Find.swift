@@ -65,7 +65,7 @@ extension MainViewController {
         findCurrent = -1
         findRegex = nil
         findBar.setResult(current: nil, total: 0)
-        activeDocument?.editor.focusEditor()
+        activePane?.focusEditor()
     }
 
     // MARK: - Matching
@@ -79,7 +79,7 @@ extension MainViewController {
         findRegex = buildFindRegex()
 
         guard !findBar.isHidden,
-              let editor = activeDocument?.editor,
+              let editor = activePane,
               let regex = findRegex else {
             findBar.setResult(current: nil, total: 0)
             return
@@ -142,7 +142,7 @@ extension MainViewController {
     /// current match, the search starts at the caret (or `from`, used after a
     /// replacement so the following match is picked up).
     func stepFind(forward: Bool, from anchor: Int? = nil) {
-        guard let editor = activeDocument?.editor else { return }
+        guard let editor = activePane else { return }
         if findMatches.isEmpty { refreshFind() }
         guard !findMatches.isEmpty else { return }
 
@@ -175,7 +175,7 @@ extension MainViewController {
 
     /// Replace the current match and jump to the next one.
     func replaceCurrentMatch() {
-        guard let editor = activeDocument?.editor,
+        guard let editor = activePane,
               findCurrent >= 0, findCurrent < findMatches.count,
               let regex = findRegex else { return }
         let range = findMatches[findCurrent]
@@ -192,7 +192,7 @@ extension MainViewController {
 
     /// Replace every match in a single undo step.
     func replaceAllMatches() {
-        guard let editor = activeDocument?.editor,
+        guard let editor = activePane,
               let regex = findRegex,
               !findMatches.isEmpty else { return }
         let textView = editor.textView
@@ -213,7 +213,7 @@ extension MainViewController {
     /// Expand the replacement string for one match ($1-style group references
     /// in regex mode; a literal string otherwise).
     private func findReplacement(for regex: NSRegularExpression, in range: NSRange) -> String? {
-        guard let textView = activeDocument?.editor.textView else { return nil }
+        guard let textView = activePane?.textView else { return nil }
         let text = textView.string
         guard let result = regex.firstMatch(in: text, range: range) else { return nil }
         let template = findBar.options.regex

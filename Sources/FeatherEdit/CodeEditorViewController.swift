@@ -54,10 +54,26 @@ final class CodeEditorViewController: NSViewController, NSTextViewDelegate {
         textView.string
     }
 
-    init(text: String, syntax: SyntaxProfile?) {
+    /// Create the primary editor for a document: owns a fresh text storage.
+    convenience init(text: String, syntax: SyntaxProfile?) {
+        self.init(storage: NSTextStorage(string: text), syntax: syntax)
+    }
+
+    /// Create an editor view onto a text storage. Editor splits pass the
+    /// primary editor's storage so both panes show and edit the same buffer
+    /// (shared text and attributes), while scrolling, selection, undo and the
+    /// line-number gutter stay per view.
+    init(storage: NSTextStorage, syntax: SyntaxProfile?) {
         self.syntax = syntax
 
-        textView = NSTextView()
+        // One layout manager + text container per text view, all attached to
+        // the shared storage.
+        let layoutManager = NSLayoutManager()
+        let container = NSTextContainer(containerSize: NSSize(width: 0, height: CGFloat.greatestFiniteMagnitude))
+        layoutManager.addTextContainer(container)
+        storage.addLayoutManager(layoutManager)
+
+        textView = NSTextView(frame: .zero, textContainer: container)
         textView.isRichText = false
         textView.allowsUndo = true
         // A custom VS Code-style find bar (see FindBarView) handles ⌘F, so the
@@ -68,7 +84,6 @@ final class CodeEditorViewController: NSViewController, NSTextViewDelegate {
         textView.isContinuousSpellCheckingEnabled = false
         textView.isGrammarCheckingEnabled = false
         textView.font = SyntaxHighlighter.codeFont
-        textView.string = text
         textView.textContainerInset = NSSize(width: 4, height: 6)
         textView.textContainer?.lineFragmentPadding = 4
 
@@ -156,6 +171,24 @@ final class CodeEditorViewController: NSViewController, NSTextViewDelegate {
 
     func focusEditor() {
         view.window?.makeFirstResponder(textView)
+    }
+
+    /// Force the view-level configuration to match the current settings.
+    /// Moving a scroll view between superviews (editor splits, tab switches)
+    /// can reset its ruler visibility, and the settings' didSet will not fire
+    /// when the value is unchanged — so this re-applies it after a pane has
+    /// been (re)embedded. Deliberately does NOT touch wrap/frame geometry,
+    /// which must not be meddled with while the split view is laying out.
+    func refreshViewSettings() {
+        guard isViewLoaded else { return }
+        applyTheme()
+        scrollView.hasVerticalRuler = true
+        scrollView.verticalRulerView = ruler
+        scrollView.verticalRulerView?.isHidden = !showsLineNumbers
+        scrollView.rulersVisible = showsLineNumbers
+        ruler.refresh()
+        scrollView.needsDisplay = true
+        rehighlight()
     }
 
     // MARK: - NSTextViewDelegate

@@ -72,6 +72,12 @@ enum AppMenu {
         viewMenu.addItem(withTitle: "Editor Dark Mode", action: #selector(MainViewController.toggleEditorDarkMode(_:)), keyEquivalent: "d").keyEquivalentModifierMask = [.command, .shift]
         viewMenu.addItem(.separator())
         viewMenu.addItem(withTitle: "Show Line Numbers", action: #selector(MainViewController.toggleLineNumbers(_:)), keyEquivalent: "l").keyEquivalentModifierMask = [.command, .shift]
+        viewMenu.addItem(.separator())
+        viewMenu.addItem(withTitle: "Split Editor Right", action: #selector(MainViewController.splitEditorRight(_:)), keyEquivalent: "\\")
+        let splitDown = viewMenu.addItem(withTitle: "Split Editor Down", action: #selector(MainViewController.splitEditorDown(_:)), keyEquivalent: "\\")
+        splitDown.keyEquivalentModifierMask = [.command, .option]
+        let closeSplit = viewMenu.addItem(withTitle: "Close Editor Split", action: #selector(MainViewController.closeEditorSplit(_:)), keyEquivalent: "\\")
+        closeSplit.keyEquivalentModifierMask = [.command, .shift]
         viewMenuItem.submenu = viewMenu
         mainMenu.addItem(viewMenuItem)
 
@@ -104,5 +110,15 @@ enum AppMenu {
         setChecked(lineNumbers, for: #selector(MainViewController.toggleLineNumbers(_:)))
         setChecked(wraps, for: #selector(MainViewController.toggleWrapLines(_:)))
         setChecked(darkMode, for: #selector(MainViewController.toggleEditorDarkMode(_:)))
+    }
+
+    /// Enable or disable a menu item across the whole menu bar.
+    static func setItemEnabled(_ enabled: Bool, for selector: Selector) {
+        for item in NSApp.mainMenu?.items ?? [] {
+            guard let submenu = item.submenu else { continue }
+            for sub in submenu.items where sub.action == selector {
+                sub.isEnabled = enabled
+            }
+        }
     }
 }

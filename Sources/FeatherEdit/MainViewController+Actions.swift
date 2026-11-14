@@ -114,6 +114,47 @@ extension MainViewController {
         showsLineNumbers.toggle()
     }
 
+    // MARK: - Editor splits
+
+    /// Split the active editor side by side (vertical divider).
+    @IBAction func splitEditorRight(_ sender: Any?) {
+        splitEditor(.right)
+    }
+
+    /// Split the active editor stacked (horizontal divider).
+    @IBAction func splitEditorDown(_ sender: Any?) {
+        splitEditor(.down)
+    }
+
+    /// Remove the split and return to a single editor view.
+    @IBAction func closeEditorSplit(_ sender: Any?) {
+        guard secondPane != nil else { return }
+        splitDirection = nil
+        secondPane = nil
+        updateEditorLayout()
+        activePane?.focusEditor()
+    }
+
+    /// Keep "Close Editor Split" enabled only while a split is open.
+    func updateSplitMenuState() {
+        AppMenu.setItemEnabled(splitDirection != nil,
+                               for: #selector(MainViewController.closeEditorSplit(_:)))
+    }
+
+    private func splitEditor(_ direction: EditorSplitDirection) {
+        guard let document = activeDocument else { return }
+        if secondPane != nil {
+            // Already split: just change the divider orientation.
+            splitDirection = direction
+            updateEditorLayout()
+            return
+        }
+        splitDirection = direction
+        secondPane = makePane(for: document)
+        updateEditorLayout()
+        secondPane?.focusEditor()
+    }
+
     // MARK: - Tab closing
 
     func closeTab(at index: Int) {
@@ -155,7 +196,6 @@ extension MainViewController {
             activeIndex -= 1
         }
         activeIndex = min(activeIndex, documents.count - 1)
-        activeChild = nil
         activate(activeIndex)
     }
 

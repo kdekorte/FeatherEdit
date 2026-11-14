@@ -11,11 +11,11 @@ final class MainViewController: NSSplitViewController {
     let tabStrip = TabBarView(frame: .zero)
     let status = StatusBarView(frame: .zero)
     var editorContainer: NSView!
-    var activeChild: NSViewController?
 
     var highlightingEnabled = settingDefault("SyntaxHighlighting", true) {
         didSet {
             documents.forEach { $0.editor.highlightingEnabled = highlightingEnabled }
+            secondPane?.highlightingEnabled = highlightingEnabled
             UserDefaults.standard.set(highlightingEnabled, forKey: "SyntaxHighlighting")
             AppMenu.syncToggles(highlighting: highlightingEnabled,
                                  lineNumbers: showsLineNumbers,
@@ -27,6 +27,7 @@ final class MainViewController: NSSplitViewController {
     var showsLineNumbers = settingDefault("ShowsLineNumbers", false) {
         didSet {
             documents.forEach { $0.editor.showsLineNumbers = showsLineNumbers }
+            secondPane?.showsLineNumbers = showsLineNumbers
             UserDefaults.standard.set(showsLineNumbers, forKey: "ShowsLineNumbers")
             AppMenu.syncToggles(highlighting: highlightingEnabled,
                                  lineNumbers: showsLineNumbers,
@@ -38,6 +39,7 @@ final class MainViewController: NSSplitViewController {
     var wrapsLines = settingDefault("WrapsLines", true) {
         didSet {
             documents.forEach { $0.editor.wrapsLines = wrapsLines }
+            secondPane?.wrapsLines = wrapsLines
             UserDefaults.standard.set(wrapsLines, forKey: "WrapsLines")
             AppMenu.syncToggles(highlighting: highlightingEnabled,
                                  lineNumbers: showsLineNumbers,
@@ -50,6 +52,7 @@ final class MainViewController: NSSplitViewController {
     var editorDarkMode = settingDefault("EditorDarkMode", false) {
         didSet {
             documents.forEach { $0.editor.darkMode = editorDarkMode }
+            secondPane?.darkMode = editorDarkMode
             UserDefaults.standard.set(editorDarkMode, forKey: "EditorDarkMode")
             AppMenu.syncToggles(highlighting: highlightingEnabled,
                                  lineNumbers: showsLineNumbers,
@@ -68,6 +71,15 @@ final class MainViewController: NSSplitViewController {
     }
     var sidebarSplitItem: NSSplitViewItem?
     var settingsWindow: SettingsWindowController?
+
+    /// Editor split: nil = single view, otherwise the split direction.
+    var splitDirection: EditorSplitDirection? {
+        didSet { updateSplitMenuState() }
+    }
+    /// Second pane when split; shares the active document's text storage.
+    var secondPane: CodeEditorViewController?
+    /// The pane the user is working in (drives find/replace and focus).
+    var activePane: CodeEditorViewController?
 
     /// VS Code-style find/replace bar (⌘F / ⌥⌘F), floating over the editor.
     let findBar = FindBarView(frame: .zero)
@@ -161,6 +173,7 @@ final class MainViewController: NSSplitViewController {
                              lineNumbers: showsLineNumbers,
                              wraps: wrapsLines,
                              darkMode: editorDarkMode)
+        updateSplitMenuState()
 
         // Start with an empty scratch buffer so the editor is visible.
         add(document: TextDocument.scratch())
@@ -184,4 +197,12 @@ private func settingDefault(_ key: String, _ value: Bool) -> Bool {
     UserDefaults.standard.object(forKey: key) == nil
         ? value
         : UserDefaults.standard.bool(forKey: key)
+}
+
+/// Direction of an editor split.
+enum EditorSplitDirection {
+    /// Panes side by side (vertical divider).
+    case right
+    /// Panes stacked (horizontal divider).
+    case down
 }
