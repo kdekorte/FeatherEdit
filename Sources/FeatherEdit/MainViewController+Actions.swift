@@ -23,6 +23,9 @@ extension MainViewController {
         guard let document = activeDocument else { return }
         switch document.save(interactive: true, in: view.window) {
         case .saved:
+            if let url = document.url {
+                RecentFiles.record(url: url)
+            }
             refreshChrome()
         case .cancelled:
             break
@@ -44,6 +47,7 @@ extension MainViewController {
         do {
             try document.text.write(to: target, atomically: true, encoding: .utf8)
             document.savedAfterSaveAs(to: target)
+            RecentFiles.record(url: target)
             refreshChrome()
         } catch {
             showError("Could not save: \(error.localizedDescription)")

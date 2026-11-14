@@ -35,6 +35,8 @@ enum AppMenu {
         let fileMenu = NSMenu(title: "File")
         fileMenu.addItem(withTitle: "New", action: #selector(MainViewController.newDocument(_:)), keyEquivalent: "n")
         fileMenu.addItem(withTitle: "Open…", action: #selector(MainViewController.openDocument(_:)), keyEquivalent: "o")
+        let openRecent = fileMenu.addItem(withTitle: "Open Recent", action: nil, keyEquivalent: "")
+        openRecent.submenu = NSMenu(title: "Open Recent")
         fileMenu.addItem(.separator())
         fileMenu.addItem(withTitle: "Save", action: #selector(MainViewController.saveDocument(_:)), keyEquivalent: "s")
         fileMenu.addItem(withTitle: "Save As…", action: #selector(MainViewController.saveDocumentAs(_:)), keyEquivalent: "s").keyEquivalentModifierMask = [.command, .shift]
@@ -92,6 +94,34 @@ enum AppMenu {
         mainMenu.addItem(windowMenuItem)
 
         NSApp.mainMenu = mainMenu
+        refreshRecentFiles()
+    }
+
+    /// Rebuild the File ▸ Open Recent submenu from the stored list (most
+    /// recent first). Called at launch and whenever a file is recorded.
+    static func refreshRecentFiles() {
+        guard let menu = NSApp.mainMenu else { return }
+        // Find File ▸ Open Recent (title-based lookup; the menu is built
+        // statically and its structure is fixed).
+        guard let fileMenu = menu.items.first(where: { $0.submenu?.title == "File" })?.submenu,
+              let recentItem = fileMenu.items.first(where: { $0.title == "Open Recent" }),
+              let recentMenu = recentItem.submenu else { return }
+
+        recentMenu.removeAllItems()
+        let paths = RecentFiles.paths()
+        if paths.isEmpty {
+            let empty = NSMenuItem(title: "No Recent Files", action: nil, keyEquivalent: "")
+            empty.isEnabled = false
+            recentMenu.addItem(empty)
+            return
+        }
+        for path in paths {
+            let item = NSMenuItem(title: path,
+                                  action: #selector(MainViewController.openRecentFile(_:)),
+                                  keyEquivalent: "")
+            item.representedObject = path
+            recentMenu.addItem(item)
+        }
     }
 
     /// Show a checkmark next to a View-menu toggle item.

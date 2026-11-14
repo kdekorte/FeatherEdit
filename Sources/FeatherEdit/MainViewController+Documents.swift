@@ -7,6 +7,7 @@ extension MainViewController {
     func open(urls: [URL]) {
         for url in urls {
             guard FileManager.default.fileExists(atPath: url.path) else { continue }
+            RecentFiles.record(url: url)
             // Reuse an already-open tab for the same file.
             if let existing = documents.firstIndex(where: {
                 $0.url?.standardizedFileURL == url.standardizedFileURL
@@ -21,6 +22,13 @@ extension MainViewController {
                 showError("Could not open \(url.lastPathComponent): \(error.localizedDescription)")
             }
         }
+    }
+
+    /// File ▸ Open Recent — the path rides in the menu item's representedObject.
+    @IBAction func openRecentFile(_ sender: Any?) {
+        guard let item = sender as? NSMenuItem,
+              let path = item.representedObject as? String else { return }
+        open(urls: [URL(fileURLWithPath: path)])
     }
 
     func add(document: TextDocument) {
