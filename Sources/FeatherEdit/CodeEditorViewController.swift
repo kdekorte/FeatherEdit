@@ -60,7 +60,9 @@ final class CodeEditorViewController: NSViewController, NSTextViewDelegate {
         textView = NSTextView()
         textView.isRichText = false
         textView.allowsUndo = true
-        textView.usesFindBar = true
+        // A custom VS Code-style find bar (see FindBarView) handles ⌘F, so the
+        // native NSTextView find bar is disabled to avoid conflicts.
+        textView.usesFindBar = false
         textView.isAutomaticQuoteSubstitutionEnabled = false
         textView.isAutomaticDashSubstitutionEnabled = false
         textView.isContinuousSpellCheckingEnabled = false

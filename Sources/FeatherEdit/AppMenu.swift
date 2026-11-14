@@ -53,6 +53,13 @@ enum AppMenu {
         editMenu.addItem(withTitle: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
         editMenu.addItem(withTitle: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
         editMenu.addItem(withTitle: "Select All", action: #selector(NSResponder.selectAll(_:)), keyEquivalent: "a")
+        editMenu.addItem(.separator())
+        editMenu.addItem(withTitle: "Find…", action: #selector(MainViewController.showFind(_:)), keyEquivalent: "f")
+        let findReplaceItem = editMenu.addItem(withTitle: "Find and Replace…", action: #selector(MainViewController.showFindAndReplace(_:)), keyEquivalent: "f")
+        findReplaceItem.keyEquivalentModifierMask = [.command, .option]
+        editMenu.addItem(withTitle: "Find Next", action: #selector(MainViewController.findNextMatch(_:)), keyEquivalent: "g")
+        let findPrevItem = editMenu.addItem(withTitle: "Find Previous", action: #selector(MainViewController.findPreviousMatch(_:)), keyEquivalent: "g")
+        findPrevItem.keyEquivalentModifierMask = [.command, .shift]
         editMenuItem.submenu = editMenu
         mainMenu.addItem(editMenuItem)
 

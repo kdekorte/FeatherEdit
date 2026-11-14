@@ -185,5 +185,11 @@ extension MainViewController {
                       column: cursor.column,
                       language: document.syntax?.name ?? "Plain Text",
                       highlighting: highlightingEnabled)
+
+        // Keep the find highlights and match count in sync with edits and
+        // tab switches.
+        if !findBar.isHidden {
+            refreshFind()
+        }
     }
 }

@@ -59,6 +59,13 @@ final class MainViewController: NSSplitViewController {
     }
     var settingsWindow: SettingsWindowController?
 
+    /// VS Code-style find/replace bar (⌘F / ⌥⌘F), floating over the editor.
+    let findBar = FindBarView(frame: .zero)
+    /// Match ranges in the active editor for the current find query.
+    var findMatches: [NSRange] = []
+    var findCurrent = -1
+    var findRegex: NSRegularExpression?
+
     var cursor = (line: 1, column: 1)
 
     override func viewDidAppear() {
@@ -114,6 +121,17 @@ final class MainViewController: NSSplitViewController {
             status.bottomAnchor.constraint(equalTo: main.bottomAnchor),
             status.heightAnchor.constraint(equalToConstant: 24),
         ])
+
+        // Find & Replace bar: floats above the editor, hidden until ⌘F.
+        findBar.translatesAutoresizingMaskIntoConstraints = false
+        findBar.isHidden = true
+        main.addSubview(findBar)
+        NSLayoutConstraint.activate([
+            findBar.topAnchor.constraint(equalTo: tabStrip.bottomAnchor, constant: 4),
+            findBar.trailingAnchor.constraint(equalTo: main.trailingAnchor, constant: -8),
+            findBar.widthAnchor.constraint(equalToConstant: 470),
+        ])
+        setupFindBar()
 
         let mainItem = NSSplitViewItem(viewController: EditorHostViewController(content: main))
         mainItem.canCollapse = false
