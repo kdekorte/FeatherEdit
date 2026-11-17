@@ -3,7 +3,7 @@ import AppKit
 /// Application-wide constants.
 enum AppInfo {
     static let name = "FeatherEdit"
-    static let version = "1.0.1"
+    static let version = "1.1.0"
     static let copyright = "Copyright © 2026 FeatherEdit contributors."
 }
 
