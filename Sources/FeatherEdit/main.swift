@@ -128,7 +128,8 @@ enum SelfTests {
         let vc = MainViewController()
         _ = vc.view
         let url = URL(fileURLWithPath: "/tmp/featheredit-format.json")
-        let doc = TextDocument(url: url, text: #"{"b":1,"a":[1,2],"c":{"z":true}}"#,
+        let doc = TextDocument(url: url,
+                               text: #"{"b":1,"a":[1,2],"pi":1.50,"c":{"z":true}}"#,
                                syntax: SyntaxProfile.forExtension(of: url))
         vc.add(document: doc)
 
@@ -151,8 +152,11 @@ enum SelfTests {
         check("formatted JSON is multi-line", formatted.contains("\n"))
         check("formatted JSON indents nested values",
               formatted.contains("\n    ") || formatted.contains("\n  "))
-        check("formatted JSON sorts keys",
-              formatted.range(of: "\"a\"").map { $0.lowerBound < formatted.range(of: "\"b\"")!.lowerBound } == true)
+        check("formatted JSON preserves key order",
+              formatted.range(of: "\"b\"").map { b in
+                  formatted.range(of: "\"a\"").map { a in b.lowerBound < a.lowerBound } ?? false
+              } == true)
+        check("formatted JSON preserves number spelling", formatted.contains("1.50"))
         check("formatting marks the document dirty", doc.isDirty)
         // The pretty output must still parse to the same value.
         let reparsed = try? JSONSerialization.jsonObject(

@@ -147,10 +147,13 @@ extension MainViewController {
 
     // MARK: - JSON formatting (context menu on JSON files)
 
-    /// Pretty-print a document as JSON: re-serialize the parsed value with
-    /// indentation and sorted keys, replacing the text through the text view
-    /// so the change is undoable and dirty state updates. Returns a failure
-    /// message when the text is not valid JSON (the text is left untouched).
+    /// Pretty-print a document as JSON by re-indenting it: the text is
+    /// validated with JSONSerialization, then re-emitted with one item per
+    /// line and two-space indentation — object key order, number spelling
+    /// and string escapes are preserved verbatim. The text is replaced
+    /// through the text view so the change is undoable and dirty state
+    /// updates. Returns a failure message when the text is not valid JSON
+    /// (the text is left untouched).
     @discardableResult
     func formatJSON(document: TextDocument) -> String? {
         let editor = document.editor
@@ -159,9 +162,10 @@ extension MainViewController {
             return "Could not format JSON — the document is empty."
         }
 
-        let object: Any
+        // Validation only; the formatter below re-indents the original text
+        // so the key order is preserved.
         do {
-            object = try JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed])
+            _ = try JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed])
         } catch {
             // The JSON error's debug description carries the position
             // ("around line 3, column 7"); surface it when present.
@@ -169,10 +173,7 @@ extension MainViewController {
             return "Could not format JSON — it is not valid JSON.\(detail.map { "\n\($0)" } ?? "")"
         }
 
-        guard let prettyData = try? JSONSerialization.data(
-                  withJSONObject: object,
-                  options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes, .fragmentsAllowed]),
-              var pretty = String(data: prettyData, encoding: .utf8) else {
+        guard var pretty = JSONFormatter.prettyPrint(text) else {
             return "Could not format JSON."
         }
         // Preserve a trailing newline if the original text had one.
