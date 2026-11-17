@@ -124,9 +124,13 @@ final class MainViewController: NSSplitViewController {
         tabStrip.translatesAutoresizingMaskIntoConstraints = false
         tabStrip.onSelect = { [weak self] index in self?.activate(index) }
         tabStrip.onClose = { [weak self] index in self?.closeTab(at: index) }
+        tabStrip.onBeginTabDrag = { [weak self] index in self?.beginTabDrag(at: index) }
+        tabStrip.onTabDragEnded = { [weak self] operation, point, index in
+            self?.endTabDrag(operation, at: point, index: index)
+        }
         main.addSubview(tabStrip)
 
-        editorContainer = NSView()
+        editorContainer = TabDropView()
         editorContainer.translatesAutoresizingMaskIntoConstraints = false
         main.addSubview(editorContainer)
 
@@ -189,6 +193,34 @@ final class EditorHostViewController: NSViewController {
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("not supported")
+    }
+}
+
+/// The editor area: accepts tab drags from another (or this) window so the
+/// drop is not treated as "dropped nowhere" (cursor feedback only — the
+/// actual move is decided by the drag source using window geometry).
+final class TabDropView: NSView {
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        registerForDraggedTypes([TabDrag.pasteboardType])
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("not supported")
+    }
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        TabDrag.document != nil ? .move : []
+    }
+
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        TabDrag.document != nil ? .move : []
+    }
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        TabDrag.document != nil
     }
 }
 

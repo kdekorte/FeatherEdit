@@ -177,11 +177,40 @@ final class CodeEditorViewController: NSViewController, NSTextViewDelegate {
     /// Moving a scroll view between superviews (editor splits, tab switches)
     /// can reset its ruler visibility, and the settings' didSet will not fire
     /// when the value is unchanged — so this re-applies it after a pane has
-    /// been (re)embedded. Deliberately does NOT touch wrap/frame geometry,
-    /// which must not be meddled with while the split view is laying out.
+    /// been (re)embedded. Also repairs the text layout after a pane was
+    /// detached (see the container-width note below).
     func refreshViewSettings() {
         guard isViewLoaded else { return }
         applyTheme()
+        // A pane that was detached (inactive tab, or a tab moved between
+        // windows) can carry a layout computed while its text view had no
+        // window and zero size — an effectively unbounded line width, which
+        // leaves the text laid out on one huge, invisible line. Make sure the
+        // view tree has its real geometry first (the invalidation must not
+        // re-cache another zero-size layout), then re-assert the wrap
+        // geometry and invalidate so the layout recomputes at the real width.
+        view.layoutSubtreeIfNeeded()
+        textView.textContainer?.widthTracksTextView = wrapsLines
+        if wrapsLines {
+            // A container width of 0 means "no wrapping" to the layout
+            // manager. The tracking normally syncs the width when the text
+            // view resizes inside a window, but a pane that was detached and
+            // re-embedded misses that sync — so set the width explicitly.
+            let clipWidth = scrollView.contentView.bounds.width
+            let width = clipWidth > 0 ? clipWidth : textView.frame.width
+            if width > 0 {
+                textView.textContainer?.containerSize = NSSize(width: width,
+                                                                height: CGFloat.greatestFiniteMagnitude)
+                textView.frame.size.width = width
+            }
+        } else {
+            textView.textContainer?.containerSize = NSSize(width: CGFloat.greatestFiniteMagnitude,
+                                                            height: CGFloat.greatestFiniteMagnitude)
+        }
+        let full = NSRange(location: 0, length: (textView.string as NSString).length)
+        textView.layoutManager?.invalidateLayout(forCharacterRange: full,
+                                                 actualCharacterRange: nil)
+        textView.needsLayout = true
         scrollView.hasVerticalRuler = true
         scrollView.verticalRulerView = ruler
         scrollView.verticalRulerView?.isHidden = !showsLineNumbers

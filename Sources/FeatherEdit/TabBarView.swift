@@ -1,7 +1,21 @@
 import AppKit
 
+/// In-process state for a tab being dragged between windows. The pasteboard
+/// only carries a marker; the actual document travels here.
+enum TabDrag {
+    static let pasteboardType = NSPasteboard.PasteboardType("com.featheredit.tab")
+    static var document: TextDocument?
+    static weak var source: MainViewController?
+
+    static func clear() {
+        document = nil
+        source = nil
+    }
+}
+
 /// A VS Code-like tab strip: one clickable tab per open document with a
-/// close button on the active/hovered tab.
+/// close button on the active/hovered tab. Tabs can be dragged out of the
+/// strip (tear off into a new window) and dropped onto another strip.
 final class TabBarView: NSView {
 
     private let stackView = NSStackView()
@@ -9,11 +23,17 @@ final class TabBarView: NSView {
 
     var onSelect: ((Int) -> Void)?
     var onClose: ((Int) -> Void)?
+    /// A tab drag started at `index` (sets up the shared TabDrag state).
+    var onBeginTabDrag: ((Int) -> Void)?
+    /// A tab drag that started at `index` ended at the given screen point.
+    var onTabDragEnded: ((NSDragOperation, NSPoint, Int) -> Void)?
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         wantsLayer = true
         layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
+
+        registerForDraggedTypes([TabDrag.pasteboardType])
 
         stackView.orientation = .horizontal
         stackView.spacing = 1
@@ -42,18 +62,53 @@ final class TabBarView: NSView {
             let tab = TabItemView(title: item.title, dirty: item.dirty, active: index == active)
             tab.onSelect = { [weak self] in self?.onSelect?(index) }
             tab.onClose = { [weak self] in self?.onClose?(index) }
+            tab.onBeginDrag = { [weak self] in self?.onBeginTabDrag?(index) }
+            tab.onDragEnded = { [weak self] operation, point in
+                self?.onTabDragEnded?(operation, point, index)
+            }
             stackView.addArrangedSubview(tab)
             tabViews.append(tab)
         }
         needsDisplay = true
     }
+
+    // MARK: - Drag destination (acceptance only, for cursor feedback; the
+    // actual move is decided by the drag source using window geometry).
+
+    /// Where a tab dropped at `point` (view coordinates) should be inserted.
+    func insertionIndex(at point: NSPoint) -> Int {
+        for (index, tab) in tabViews.enumerated() {
+            if point.x < tab.frame.midX { return index }
+        }
+        return tabViews.count
+    }
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        TabDrag.document != nil ? .move : []
+    }
+
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        TabDrag.document != nil ? .move : []
+    }
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        TabDrag.document != nil
+    }
 }
 
-/// A single tab: title + optional dirty dot + close button.
-final class TabItemView: NSView {
+/// A single tab: title + optional dirty dot + close button. Can be dragged
+/// out of its strip (tear off into a new window / move between windows).
+final class TabItemView: NSView, NSDraggingSource {
 
     var onSelect: (() -> Void)?
     var onClose: (() -> Void)?
+    /// The tab started being dragged.
+    var onBeginDrag: (() -> Void)?
+    /// The drag session ended; `.none` means it was dropped nowhere useful.
+    var onDragEnded: ((NSDragOperation, NSPoint) -> Void)?
+
+    private var dragStarted = false
+    private var mouseDownPoint = NSPoint.zero
 
     private let titleLabel = NSTextField(labelWithString: "")
     private let dirtyDot = NSView()
@@ -117,6 +172,51 @@ final class TabItemView: NSView {
     }
 
     override func mouseDown(with event: NSEvent) {
-        onSelect?()
+        // Note: selection is deferred to mouseUp. Selecting here would rebuild
+        // the whole tab strip (refreshChrome), removing this view from the
+        // hierarchy and cancelling the drag session before it can start.
+        mouseDownPoint = convert(event.locationInWindow, from: nil)
+        dragStarted = false
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        if !dragStarted {
+            onSelect?()
+        }
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard !dragStarted else { return }
+        let current = convert(event.locationInWindow, from: nil)
+        guard abs(current.x - mouseDownPoint.x) + abs(current.y - mouseDownPoint.y) > 6 else { return }
+        dragStarted = true
+        onBeginDrag?()
+
+        // The pasteboard carries only a marker; the document travels in the
+        // shared TabDrag state. The drag image is a snapshot of the tab.
+        let item = NSPasteboardItem()
+        item.setString("tab", forType: TabDrag.pasteboardType)
+        let draggingItem = NSDraggingItem(pasteboardWriter: item)
+        if let rep = bitmapImageRepForCachingDisplay(in: bounds) {
+            cacheDisplay(in: bounds, to: rep)
+            let image = NSImage(size: bounds.size)
+            image.addRepresentation(rep)
+            draggingItem.setDraggingFrame(NSRect(origin: .zero, size: bounds.size), contents: image)
+        }
+        beginDraggingSession(with: [draggingItem], event: event, source: self)
+    }
+
+    // MARK: - NSDraggingSource
+
+    func draggingSession(_ session: NSDraggingSession,
+                         sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
+        .move
+    }
+
+    func draggingSession(_ session: NSDraggingSession,
+                         endedAt screenPoint: NSPoint,
+                         operation: NSDragOperation) {
+        dragStarted = false
+        onDragEnded?(operation, screenPoint)
     }
 }

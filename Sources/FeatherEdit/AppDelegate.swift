@@ -12,10 +12,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     static var shared: AppDelegate!
 
     private(set) var windowController: MainWindowController?
+    /// Windows torn off by dragging a tab out (strong refs for their lifetime).
+    private var tornOffControllers: [MainWindowController] = []
     /// Files delivered by the "open document" Apple event before the window
     /// exists (Finder launches deliver the event *before*
     /// applicationDidFinishLaunching). Drained once the window is up.
     private var pendingURLs: [URL] = []
+
+    /// All live windows (the main one plus torn-off ones).
+    private var allControllers: [MainWindowController] {
+        [windowController].compactMap { $0 } + tornOffControllers
+    }
 
     override init() {
         super.init()
@@ -76,8 +83,152 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         true
     }
 
+    /// Move a document into a brand-new window (tab tear-off). The document
+    /// is inserted and the window positioned *before* it is shown, so there
+    /// is no visible center-then-move bounce. Reuses the live tear-off window
+    /// when one is already following the cursor.
+    func tearOff(document: TextDocument, at screenPoint: NSPoint) {
+        let controller: MainWindowController
+        if let live = liveTearOff {
+            liveTearOff = nil
+            controller = live
+        } else {
+            controller = MainWindowController()
+            tornOffControllers.append(controller)
+            controller.onWindowClosed = { [weak self, weak controller] in
+                guard let self, let controller else { return }
+                self.tornOffControllers.removeAll { $0 === controller }
+            }
+        }
+        controller.viewController.insert(document: document, at: 0)
+
+        if let window = controller.window {
+            window.alphaValue = 1
+            positionTornOffWindow(window, at: screenPoint)
+        }
+        controller.showWindow(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    // MARK: - Live tear-off window
+
+    /// A translucent window shown under the cursor while a tab drag is
+    /// outside every FeatherEdit window. Landing the drop on it makes the
+    /// drag a *successful* one, so AppKit never plays the snap-back-to-source
+    /// animation for a tear-off; committing the drop turns it into the real
+    /// torn-off window.
+    private var liveTearOff: MainWindowController?
+    private var liveTimer: Timer?
+
+    /// The window currently shown for an in-flight tab tear-off, if any.
+    /// The drop target resolution skips it unless the drop point lies in no
+    /// other window: the live window follows the cursor and sits in front,
+    /// so it would otherwise steal drops aimed at the window behind it.
+    var liveTearOffWindow: NSWindow? { liveTearOff?.window }
+
+    /// Begin following the cursor for the duration of a tab drag. The timer
+    /// runs in the .common run-loop mode so it keeps firing while AppKit's
+    /// drag event loop owns the default mode.
+    func startLiveTearOffTracking() {
+        stopLiveTearOffTracking()
+        let timer = Timer(timeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
+            self?.updateLiveTearOff()
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        liveTimer = timer
+    }
+
+    func stopLiveTearOffTracking() {
+        liveTimer?.invalidate()
+        liveTimer = nil
+    }
+
+    /// Stop tracking and dispose of the live window: keep it (opaque) when
+    /// the dragged document ended up in it, close it otherwise (drag
+    /// cancelled, or the drop landed somewhere else).
+    func settleLiveTearOff(commitDocument: TextDocument?) {
+        stopLiveTearOffTracking()
+        guard let controller = liveTearOff else { return }
+        liveTearOff = nil
+        let landed = commitDocument.map { document in
+            controller.viewController.documents.contains { $0 === document }
+        } ?? false
+        if landed {
+            controller.window?.alphaValue = 1
+        } else {
+            controller.window?.close()
+        }
+    }
+
+    /// Self-test hook: pretend the live-tear-off timer created this window.
+    func retainLiveTearOffForTesting(_ controller: MainWindowController) {
+        tornOffControllers.append(controller)
+        controller.onWindowClosed = { [weak self, weak controller] in
+            guard let self, let controller else { return }
+            self.tornOffControllers.removeAll { $0 === controller }
+            if self.liveTearOff === controller { self.liveTearOff = nil }
+        }
+        liveTearOff = controller
+    }
+
+    /// Self-test hook: whether a live tear-off window currently exists.
+    var liveTearOffExistsForTesting: Bool { liveTearOff != nil }
+
+    private func updateLiveTearOff() {
+        guard TabDrag.document != nil else {
+            // The drag is gone but the timer was not stopped yet.
+            settleLiveTearOff(commitDocument: nil)
+            return
+        }
+        let point = NSEvent.mouseLocation
+        // A little hysteresis: the cursor must clear every window by a bit
+        // before the tear-off window appears, and the live window itself
+        // never counts as "over an app window".
+        let overAppWindow = NSApp.windows
+            .filter { $0.isVisible && $0 !== liveTearOff?.window }
+            .compactMap { $0.contentViewController as? MainViewController }
+            .contains {
+                NSPointInRect(point, ($0.view.window?.frame ?? .zero).insetBy(dx: -24, dy: -24))
+            }
+        if overAppWindow {
+            // Back over an app window — no tear-off after all.
+            liveTearOff?.window?.close()
+        } else if liveTearOff == nil {
+            let controller = MainWindowController()
+            tornOffControllers.append(controller)
+            controller.onWindowClosed = { [weak self, weak controller] in
+                guard let self, let controller else { return }
+                self.tornOffControllers.removeAll { $0 === controller }
+                if self.liveTearOff === controller { self.liveTearOff = nil }
+            }
+            if let window = controller.window {
+                window.alphaValue = 0.85
+                positionTornOffWindow(window, at: point)
+            }
+            controller.showWindow(nil)
+            liveTearOff = controller
+        } else if let window = liveTearOff?.window {
+            positionTornOffWindow(window, at: point)
+        }
+    }
+
+    /// Place a torn-off window so the drop point sits near its top centre,
+    /// clamped to the visible frame of the screen containing the point.
+    private func positionTornOffWindow(_ window: NSWindow, at screenPoint: NSPoint) {
+        var origin = screenPoint
+        origin.x -= window.frame.width / 2
+        origin.y -= 40
+        let screen = NSScreen.screens.first { NSPointInRect(screenPoint, $0.frame) } ?? NSScreen.main
+        if let visible = screen?.visibleFrame {
+            origin.x = min(max(origin.x, visible.minX), visible.maxX - window.frame.width)
+            origin.y = min(max(origin.y, visible.minY), visible.maxY - window.frame.height)
+        }
+        window.setFrameOrigin(origin)
+    }
+
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard let documents = windowController?.viewController.dirtyDocuments(), !documents.isEmpty else {
+        let documents = allControllers.flatMap { $0.viewController.dirtyDocuments() }
+        guard !documents.isEmpty else {
             return .terminateNow
         }
         let alert = NSAlert()
