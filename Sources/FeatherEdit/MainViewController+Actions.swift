@@ -145,6 +145,56 @@ extension MainViewController {
                                for: #selector(MainViewController.closeEditorSplit(_:)))
     }
 
+    // MARK: - JSON formatting (context menu on JSON files)
+
+    /// Pretty-print a document as JSON: re-serialize the parsed value with
+    /// indentation and sorted keys, replacing the text through the text view
+    /// so the change is undoable and dirty state updates. Returns a failure
+    /// message when the text is not valid JSON (the text is left untouched).
+    @discardableResult
+    func formatJSON(document: TextDocument) -> String? {
+        let editor = document.editor
+        let text = editor.text
+        guard !text.isEmpty, let data = text.data(using: .utf8) else {
+            return "Could not format JSON — the document is empty."
+        }
+
+        let object: Any
+        do {
+            object = try JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed])
+        } catch {
+            // The JSON error's debug description carries the position
+            // ("around line 3, column 7"); surface it when present.
+            let detail = (error as NSError).userInfo[NSDebugDescriptionErrorKey] as? String
+            return "Could not format JSON — it is not valid JSON.\(detail.map { "\n\($0)" } ?? "")"
+        }
+
+        guard let prettyData = try? JSONSerialization.data(
+                  withJSONObject: object,
+                  options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes, .fragmentsAllowed]),
+              var pretty = String(data: prettyData, encoding: .utf8) else {
+            return "Could not format JSON."
+        }
+        // Preserve a trailing newline if the original text had one.
+        if text.hasSuffix("\n") {
+            pretty += "\n"
+        }
+
+        let full = NSRange(location: 0, length: (text as NSString).length)
+        // replaceCharacters goes through shouldChangeText/didChangeText, so
+        // the edit registers on undo, re-highlights and marks the tab dirty.
+        editor.textView.replaceCharacters(in: full, with: pretty)
+        return nil
+    }
+
+    /// Context-menu action: format the active document, reporting failures.
+    @IBAction func formatJSON(_ sender: Any?) {
+        guard let document = activeDocument else { return }
+        if let message = formatJSON(document: document) {
+            showError(message)
+        }
+    }
+
     private func splitEditor(_ direction: EditorSplitDirection) {
         guard let document = activeDocument else { return }
         if secondPane != nil {

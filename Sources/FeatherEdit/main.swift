@@ -115,6 +115,63 @@ enum SelfTests {
         if ok {
             ok = roundTripColorTest(log: log)
         }
+        if ok {
+            ok = jsonFormatTest(log: log)
+        }
+        return ok
+    }
+
+    /// "Format JSON" (context menu on JSON files): a compact JSON document
+    /// must come back multi-line with indentation, and still parse to the
+    /// same value; invalid JSON must be rejected without touching the text.
+    static func jsonFormatTest(log: (String) -> Void) -> Bool {
+        let vc = MainViewController()
+        _ = vc.view
+        let url = URL(fileURLWithPath: "/tmp/featheredit-format.json")
+        let doc = TextDocument(url: url, text: #"{"b":1,"a":[1,2],"c":{"z":true}}"#,
+                               syntax: SyntaxProfile.forExtension(of: url))
+        vc.add(document: doc)
+
+        var ok = true
+        func check(_ label: String, _ condition: Bool) {
+            if condition {
+                print("ok   \(label)")
+            } else {
+                ok = false
+                print("FAIL \(label)")
+            }
+        }
+
+        check("context menu offers Format JSON for a .json document",
+              (doc.editor.textView as? EditorTextView)?.offersFormatJSON == true)
+
+        log("step: format valid JSON")
+        vc.formatJSON(document: doc)
+        let formatted = doc.editor.text
+        check("formatted JSON is multi-line", formatted.contains("\n"))
+        check("formatted JSON indents nested values",
+              formatted.contains("\n    ") || formatted.contains("\n  "))
+        check("formatted JSON sorts keys",
+              formatted.range(of: "\"a\"").map { $0.lowerBound < formatted.range(of: "\"b\"")!.lowerBound } == true)
+        check("formatting marks the document dirty", doc.isDirty)
+        // The pretty output must still parse to the same value.
+        let reparsed = try? JSONSerialization.jsonObject(
+            with: Data(formatted.utf8), options: [.fragmentsAllowed]) as? [String: Any]
+        check("formatted JSON parses back to the same value",
+              (reparsed?["a"] as? [Int]) == [1, 2] && reparsed?["b"] as? Int == 1)
+
+        log("step: format invalid JSON")
+        doc.editor.textView.string = #"{"broken": "# + "1,"
+        let before = doc.editor.text
+        if vc.formatJSON(document: doc) != nil {
+            print("ok   invalid JSON reports a failure")
+        } else {
+            ok = false
+            print("FAIL invalid JSON was accepted")
+        }
+        check("invalid JSON is left untouched", doc.editor.text == before)
+
+        print(ok ? "JSON FORMAT PASS" : "JSON FORMAT FAILURES")
         return ok
     }
 

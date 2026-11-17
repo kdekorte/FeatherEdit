@@ -1,11 +1,30 @@
 import AppKit
 
+/// The editor's text view: the standard NSTextView context menu plus a
+/// "Format JSON" item when the document's syntax profile is JSON.
+final class EditorTextView: NSTextView {
+
+    /// Whether the context menu offers "Format JSON".
+    var offersFormatJSON = false
+
+    override func menu(for event: NSEvent) -> NSMenu? {
+        guard let menu = super.menu(for: event) else { return nil }
+        if offersFormatJSON {
+            menu.addItem(.separator())
+            menu.addItem(withTitle: "Format JSON",
+                         action: #selector(MainViewController.formatJSON(_:)),
+                         keyEquivalent: "")
+        }
+        return menu
+    }
+}
+
 /// A monospaced NSTextView with a line-number gutter and optional syntax
 /// highlighting. One instance per open document so undo history and scroll
 /// position survive tab switches.
 final class CodeEditorViewController: NSViewController, NSTextViewDelegate {
 
-    let textView: NSTextView
+    let textView: EditorTextView
     private let scrollView: NSScrollView
     private let ruler: LineNumberRulerView
 
@@ -16,6 +35,7 @@ final class CodeEditorViewController: NSViewController, NSTextViewDelegate {
 
     var syntax: SyntaxProfile? {
         didSet {
+            textView.offersFormatJSON = syntax?.name == "JSON"
             rehighlight()
         }
     }
@@ -73,9 +93,10 @@ final class CodeEditorViewController: NSViewController, NSTextViewDelegate {
         layoutManager.addTextContainer(container)
         storage.addLayoutManager(layoutManager)
 
-        textView = NSTextView(frame: .zero, textContainer: container)
+        textView = EditorTextView(frame: .zero, textContainer: container)
         textView.isRichText = false
         textView.allowsUndo = true
+        textView.offersFormatJSON = syntax?.name == "JSON"
         // A custom VS Code-style find bar (see FindBarView) handles ⌘F, so the
         // native NSTextView find bar is disabled to avoid conflicts.
         textView.usesFindBar = false
