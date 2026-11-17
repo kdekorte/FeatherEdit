@@ -158,6 +158,10 @@ enum SelfTests {
               } == true)
         check("formatted JSON preserves number spelling", formatted.contains("1.50"))
         check("formatting marks the document dirty", doc.isDirty)
+        // The formatted text must be re-highlighted (colored), like any edit.
+        let hasColor = doc.editor.textView.textStorage?
+            .attribute(.foregroundColor, at: 0, effectiveRange: nil) != nil
+        check("formatted JSON is syntax highlighted", hasColor)
         // The pretty output must still parse to the same value.
         let reparsed = try? JSONSerialization.jsonObject(
             with: Data(formatted.utf8), options: [.fragmentsAllowed]) as? [String: Any]

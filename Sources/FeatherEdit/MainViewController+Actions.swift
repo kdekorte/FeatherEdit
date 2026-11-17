@@ -182,9 +182,13 @@ extension MainViewController {
         }
 
         let full = NSRange(location: 0, length: (text as NSString).length)
-        // replaceCharacters goes through shouldChangeText/didChangeText, so
-        // the edit registers on undo, re-highlights and marks the tab dirty.
+        // replaceCharacters alone does NOT go through the delegate's
+        // textDidChange, so the new text would carry no highlighting
+        // attributes and the tab's dirty dot would not refresh. Calling
+        // didChangeText() runs rehighlight() and onTextChanged (undo
+        // registration happens inside replaceCharacters itself).
         editor.textView.replaceCharacters(in: full, with: pretty)
+        editor.textView.didChangeText()
         return nil
     }
 

@@ -181,6 +181,10 @@ extension MainViewController {
         let range = findMatches[findCurrent]
         guard let replacement = findReplacement(for: regex, in: range) else { return }
         editor.textView.replaceCharacters(in: range, with: replacement)
+        // replaceCharacters does not fire the delegate's textDidChange;
+        // without this the replacement is not re-highlighted and the dirty
+        // dot does not refresh.
+        editor.textView.didChangeText()
 
         // The edit above refreshed the matches; select the next one after the
         // text we just inserted.
@@ -207,6 +211,9 @@ extension MainViewController {
             }
         }
         undoManager?.endUndoGrouping()
+        // Re-highlight the replaced text and refresh the dirty state (see
+        // replaceCurrentMatch for why this is needed after replaceCharacters).
+        textView.didChangeText()
         refreshFind()
     }
 
