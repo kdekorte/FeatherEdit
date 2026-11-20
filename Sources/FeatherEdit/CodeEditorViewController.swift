@@ -60,6 +60,21 @@ final class CodeEditorViewController: NSViewController, NSTextViewDelegate {
             rehighlight()
         }
     }
+    /// Monospaced font for the text (from Settings ▸ Editor Font).
+    var font: NSFont = SyntaxHighlighter.codeFont {
+        didSet {
+            guard isViewLoaded else { return }
+            textView.font = font
+            // Changing the font changes every line's metrics. Re-assert the
+            // wrap geometry and invalidate the layout (as a re-embedded pane
+            // does), then redraw, or the text can be laid out at a stale width
+            // and left blank until the next edit.
+            refreshViewSettings()
+            rehighlight()
+            textView.needsDisplay = true
+            scrollView.needsDisplay = true
+        }
+    }
     var showsLineNumbers = false {
         didSet {
             guard isViewLoaded else { return }
@@ -104,7 +119,7 @@ final class CodeEditorViewController: NSViewController, NSTextViewDelegate {
         textView.isAutomaticDashSubstitutionEnabled = false
         textView.isContinuousSpellCheckingEnabled = false
         textView.isGrammarCheckingEnabled = false
-        textView.font = SyntaxHighlighter.codeFont
+        textView.font = font
         textView.textContainerInset = NSSize(width: 4, height: 6)
         textView.textContainer?.lineFragmentPadding = 4
 
@@ -307,7 +322,8 @@ final class CodeEditorViewController: NSViewController, NSTextViewDelegate {
         let restoring = textView.window?.firstResponder == textView
         SyntaxHighlighter.apply(to: textView.textStorage!,
                                 profile: highlightingEnabled ? syntax : nil,
-                                dark: darkMode)
+                                dark: darkMode,
+                                font: font)
         if restoring {
             textView.setSelectedRange(selected)
         }

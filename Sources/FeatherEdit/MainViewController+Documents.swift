@@ -231,6 +231,7 @@ extension MainViewController {
         editor.showsLineNumbers = showsLineNumbers
         editor.wrapsLines = wrapsLines
         editor.darkMode = editorDarkMode
+        editor.font = editorFont
     }
 
     /// Embed the active document's panes in the editor container: a single

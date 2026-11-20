@@ -34,7 +34,8 @@ enum SyntaxHighlighter {
 
     static let codeFont = NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)
 
-    static func apply(to storage: NSTextStorage, profile: SyntaxProfile?, dark: Bool = false) {
+    static func apply(to storage: NSTextStorage, profile: SyntaxProfile?, dark: Bool = false,
+                      font: NSFont = codeFont) {
         let palette = dark ? Palette.dark : Palette.light
         let full = NSRange(location: 0, length: storage.length)
         let text = storage.string
@@ -47,7 +48,7 @@ enum SyntaxHighlighter {
         // otherwise unmatched text falls back to the text view's default
         // (near-black) color, which is invisible on the dark background.
         storage.removeAttribute(.foregroundColor, range: full)
-        storage.addAttribute(.font, value: codeFont, range: full)
+        storage.addAttribute(.font, value: font, range: full)
         storage.addAttribute(.foregroundColor, value: palette.plain, range: full)
         guard let profile = profile else {
             return

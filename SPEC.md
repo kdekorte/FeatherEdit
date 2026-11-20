@@ -60,8 +60,10 @@ workflow — a much smaller sibling of VS Code, not a project editor or IDE.
 - **Status bar** (`StatusBarView`): saved/modified state on the left; cursor
   position (Ln/Col), `UTF-8` encoding and language on the right.
 - **Settings window** (⌘,): checkboxes for syntax highlighting, line numbers,
-  wrap lines and dark editor, with OK (⏎, applies) and Cancel (Esc, reverts)
-  buttons. Applied values persist in `UserDefaults` and sync with the
+  wrap lines and dark editor, a fixed-width **Font** popup (lists the
+  monospaced families installed on the machine, plus "System Monospaced") and
+  a **Size** field with stepper (8–72 pt), with OK (⏎, applies) and Cancel (Esc,
+  reverts) buttons. Applied values persist in `UserDefaults` and sync with the
   View-menu checkmarks.
 
 ### File handling
@@ -145,7 +147,8 @@ programmatically when neither is found.
 - No document format of its own; files are read/written verbatim as UTF-8.
 - `UserDefaults` keys (all booleans, first-run defaults in parentheses):
   `SyntaxHighlighting` (true), `ShowsLineNumbers` (false), `WrapsLines`
-  (true), `EditorDarkMode` (false).
+  (true), `EditorDarkMode` (false), `EditorFontName` (string, absent = system
+  monospaced), `EditorFontSize` (number, 13).
 - Launch Services registration: two `CFBundleDocumentTypes` (Plain Text,
   Source Code) with rank `Alternate`, plus imported UTIs for `.rs` and `.go`.
 

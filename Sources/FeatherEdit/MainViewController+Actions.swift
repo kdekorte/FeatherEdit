@@ -96,7 +96,9 @@ extension MainViewController {
                        lineNumbers: showsLineNumbers,
                        wraps: wrapsLines,
                        darkMode: editorDarkMode,
-                       showSidebar: showsSidebarByDefault)
+                       showSidebar: showsSidebarByDefault,
+                       fontName: editorFontName,
+                       fontSize: editorFontSize)
     }
 
     private func apply(settings: EditorSettings) {
@@ -105,6 +107,8 @@ extension MainViewController {
         wrapsLines = settings.wraps
         editorDarkMode = settings.darkMode
         showsSidebarByDefault = settings.showSidebar
+        editorFontName = settings.fontName
+        editorFontSize = settings.fontSize
     }
 
     /// Collapse or expand the sidebar according to the "Show sidebar by

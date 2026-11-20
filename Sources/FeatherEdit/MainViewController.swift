@@ -69,6 +69,41 @@ final class MainViewController: NSSplitViewController {
             applySidebarDefault()
         }
     }
+    /// Editor font family (nil = system monospaced) and size, from Settings.
+    /// Persist across launches via UserDefaults.
+    var editorFontName: String? = UserDefaults.standard.string(forKey: "EditorFontName") {
+        didSet {
+            if let editorFontName {
+                UserDefaults.standard.set(editorFontName, forKey: "EditorFontName")
+            } else {
+                UserDefaults.standard.removeObject(forKey: "EditorFontName")
+            }
+            applyEditorFont()
+        }
+    }
+    var editorFontSize: CGFloat = {
+        let stored = UserDefaults.standard.double(forKey: "EditorFontSize")
+        return stored > 0 ? CGFloat(stored) : 13
+    }() {
+        didSet {
+            UserDefaults.standard.set(Double(editorFontSize), forKey: "EditorFontSize")
+            applyEditorFont()
+        }
+    }
+    /// The font the editors use: the chosen fixed-width family, or the system monospaced font.
+    var editorFont: NSFont {
+        if let name = editorFontName,
+           let font = NSFont(descriptor: NSFontDescriptor(fontAttributes: [.family: name]), size: editorFontSize) {
+            return font
+        }
+        return NSFont.monospacedSystemFont(ofSize: editorFontSize, weight: .regular)
+    }
+    /// Push the current font to every open editor pane.
+    func applyEditorFont() {
+        documents.forEach { $0.editor.font = editorFont }
+        secondPane?.font = editorFont
+    }
+
     var sidebarSplitItem: NSSplitViewItem?
     var settingsWindow: SettingsWindowController?
 
